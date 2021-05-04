@@ -7,7 +7,7 @@ class Server:
 		self.port = port
 		self.ss = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.thread_count = 0
-		self.online = False
+		self.clients = []
 
 	@property
 	def ip_address(self):
@@ -19,24 +19,36 @@ class Server:
 		s.close()
 		return ip_addr
 
-	def _threaded_client_handler(self, connection):
+	def _client_handler(self, connection):
+		#The first data being sent is gonna give us the information about the user.
+		#After that we're expecting only messages to be sent.
+		user_data_acquired = False
 		while True:
 			data = connection.recv(2048)
-			if not self.online:
-				break
 			if not data:
 				pass
+			if (text := data.decode("utf-8")) == "!disconnect":
+				connection.close()
+				logging.info(f"Client disconnected!")
+				break
+			elif text == "!users":
+				#return users
+				pass
 			else:
-				connection.sendall(data)
+				broadcast_message(data)
+
+	def broadcast_message(self, msg):
+		for client in self.clients:
+			client.sendall(data)
 
 	def start_server(self):
+		self.ss.bind((self.ip_address, self.port))
 		while True:
-			self.online = True
-			self.ss.bind((self.ip_address, self.port))
 			self.ss.listen()
 			Client, address = self.ss.accept()
-			logging.info('Connected to: ' + address[0] + ':' + str(address[1]))
-			new_thread = threading.Thread(target=self._threaded_client_handler, args=(Client,))
+			self.clients.append(Client)
+			logging.info('Client connected: ' + address[0] + ':' + str(address[1]))
+			new_thread = threading.Thread(target=self._client_handler, args=(Client,))
 			new_thread.start()
 			self.thread_count +=1
 
@@ -44,6 +56,4 @@ if __name__ == "__main__":
 	logging_format = "%(asctime)s: %(message)s"
 	logging.basicConfig(format=logging_format, level=logging.INFO, datefmt="%H:%M:%S")
 	chatServer = Server()
-	print(chatServer.port)
-	print(chatServer.ip_address)
 	chatServer.start_server()
