@@ -1,6 +1,12 @@
 import socket
 import threading
 import logging
+import json
+
+class Client:
+	def __init__(self, connection, username=None):
+		self.connection	= connection
+		self.username = username
 
 class Server:
 	def __init__(self, port=7802):
@@ -22,24 +28,33 @@ class Server:
 	def _client_handler(self, connection):
 		#The first data being sent is gonna give us the information about the user.
 		#After that we're expecting only messages to be sent.
+		client = Client(connection)
 		user_data_acquired = False
 		while True:
-			data = connection.recv(2048)
-			if not data:
-				pass
-			if (text := data.decode("utf-8")) == "!disconnect":
-				connection.close()
-				logging.info(f"Client disconnected!")
-				break
-			elif text == "!users":
-				#return users
-				pass
+			if not user_data_acquired:
+				#User data contains just the username, so its just one string.
+				user_data = client.connection.recv(2048)
+				client.username = user_data.decode("utf-8")
+				user_data_acquired = True
 			else:
-				broadcast_message(data)
+				#Got the data about the user needed now wait for messages.
+				data = client.connection.recv(2048)
+				if not data:
+					pass
+				if (text := data.decode("utf-8")) == "!disconnect":
+					client.connection.close()
+					logging.info(f"Client disconnected!")
+					break
+				elif text == "!users":
+					#return users
+					pass
+				else:
+					message = str.encode(f"{client.username}: {text}")
+					self.broadcast_message(message)
 
 	def broadcast_message(self, msg):
 		for client in self.clients:
-			client.sendall(data)
+			client.sendall(msg)
 
 	def start_server(self):
 		self.ss.bind((self.ip_address, self.port))
