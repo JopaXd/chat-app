@@ -3,6 +3,9 @@ import threading
 import logging
 import json
 
+#TODO: Think about commands !disconnect and !users and if its actually a good idea to do it this way, and is there a better way.
+#TODO: Make the closing of the server much easier when running from cmd.
+
 class Client:
 	def __init__(self, connection, username=None):
 		self.connection	= connection
@@ -29,6 +32,7 @@ class Server:
 		#The first data being sent is gonna give us the information about the user.
 		#After that we're expecting only messages to be sent.
 		client = Client(connection)
+		self.clients.append(client)
 		user_data_acquired = False
 		while True:
 			if not user_data_acquired:
@@ -54,14 +58,13 @@ class Server:
 
 	def broadcast_message(self, msg):
 		for client in self.clients:
-			client.sendall(msg)
+			client.connection.sendall(msg)
 
 	def start_server(self):
 		self.ss.bind((self.ip_address, self.port))
 		while True:
 			self.ss.listen()
 			Client, address = self.ss.accept()
-			self.clients.append(Client)
 			logging.info('Client connected: ' + address[0] + ':' + str(address[1]))
 			new_thread = threading.Thread(target=self._client_handler, args=(Client,))
 			new_thread.start()
