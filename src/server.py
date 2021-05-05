@@ -3,7 +3,6 @@ import threading
 import logging 
 import json
 
-#TODO: Make the closing of the server much easier when running from cmd.
 #TODO:Make some sort of error handler for this.
 
 class Client:
@@ -20,29 +19,36 @@ class Server:
 		self.recv_data = recv_data
 		self.encoding_format = "utf-8"
 
+	#Grabbing the local ip address.
+	#In reality you should use the public ip address.
 	@property
 	def ip_address(self):
-		#Grabbing the local ip address.
-		#In reality you should use the public ip address.
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		s.connect(("8.8.8.8", 80))
 		ip_addr = s.getsockname()[0]
 		s.close()
 		return ip_addr
 
+	#This handles the list of users/clients
+	#If a user/client leaves, this will send an updated list of users to all clients 
 	def _user_list_handler(self):
-		currentClients = len(self.clients)
+		currentClientsNumber = len(self.clients)
+		currentClients = [x for x in self.clients]
 		while True:
-			if (clients := len(self.clients)) != currentClients:
-				if clients < currentClients:
-					logging.info(f"A user left: {self.clients[-1].username}!")
-				elif clients > currentClients:
+			if (clients := len(self.clients)) != currentClientsNumber:
+				if clients < currentClientsNumber:
+					user_who_left = [u.username for u in currentClients if not u in self.clients][0]
+					logging.info(f"A user left: {user_who_left}!")
+				elif clients > currentClientsNumber:
 					logging.info(f"A user joined: {self.clients[-1].username}!")
 				if clients != 0:
-					currentClients = clients
 					data = json.dumps({"data_type": "user_data", "value": [x.username for x in self.clients]}).encode(self.encoding_format)
 					self._broadcast_data(data)
+				currentClientsNumber = clients
+				currentClients = [x for x in self.clients]
 
+	#Main handler for conencted clients.
+	#Sends and receives messages from them.
 	def _client_handler(self, connection):
 		#The first data being sent is gonna give us the information about the user.
 		#After that we're expecting only messages to be sent.
@@ -56,35 +62,48 @@ class Server:
 				user_data_acquired = True
 				self.clients.append(client)
 			else:
-				#Got the data about the user needed now wait for messages.
-				#Get the amount of data that is being expected.
-				amt_data = int(client.connection.recv(self.recv_data).decode(self.encoding_format))
-				logging.info(f"Recieved: {amt_data} bytes of data!")
-				#Get the actual data.
-				data = client.connection.recv(amt_data)
-				if not data:
-					pass
-				#The disconnect command is subject to delete.
-				#Since it won't be needed when i make the client.
-				if (text := data.decode(self.encoding_format)) == "!disconnect":
-					client.connection.close()
-					self.clients.remove(client)
-					logging.info(f"Client disconnected!")
+				try:
+					#Got the data about the user needed now wait for messages.
+					#Get the amount of data that is being expected.
+					amt_data = int(client.connection.recv(self.recv_data).decode(self.encoding_format))
+					logging.info(f"Recieved: {amt_data} bytes of data!")
+					#Get the actual data.
+					data = client.connection.recv(amt_data)
+					if not data:
+						pass
+					#The disconnect command is subject to delete.
+					#Since it won't be needed when i make the client.
+					if (text := data.decode(self.encoding_format)) == "!disconnect":
+						client.connection.close()
+						self.clients.remove(client)
+						break
+					else:
+						message = f"{client.username}: {text}"
+						logging.info(f"Broadcasting message: {text}")
+						data = json.dumps({"data_type": "message_data", "value": message}).encode(self.encoding_format)
+						self._broadcast_data(data)
+				except ConnectionResetError:
+					try:
+						#Just making sure the client is not in the list anymore...
+						self.clients.remove(client)
+					except:
+						pass
+					logging.warning("Client disconnected due to ConnectionResetError!")
 					break
-				else:
-					message = f"{client.username}: {text}"
-					logging.info(f"Broadcasting message: {text}")
-					data = json.dumps({"data_type": "message_data", "value": message}).encode(self.encoding_format)
-					self._broadcast_data(data)
 
+	#A function to send the data to all connected clients.
 	def _broadcast_data(self, data):
 		for client in self.clients:
 			#Send the amount of data being sent
 			data_size = len(data)
-			#First send the message size
-			client.connection.sendall(str(data_size).encode(self.encoding_format))
-			#Then send the actual data.
-			client.connection.sendall(data)
+			try:
+				#First send the message size
+				client.connection.sendall(str(data_size).encode(self.encoding_format))
+				#Then send the actual data.
+				client.connection.sendall(data)
+			except:
+				#Means the client is not active for whatevr reason, remove it from the list.
+				self.client.remove(client)
 
 	def start_server(self):
 		self.ss.bind((self.ip_address, self.port))
@@ -102,7 +121,7 @@ class Server:
 			self.thread_count +=1
 
 if __name__ == "__main__":
-	logging_format = "%(asctime)s: %(message)s"
+	logging_format = "[%(levelname)s] %(asctime)s: %(message)s"
 	logging.basicConfig(format=logging_format, level=logging.INFO, datefmt="%H:%M:%S")
 	chatServer = Server()
 	chatServer.start_server()
