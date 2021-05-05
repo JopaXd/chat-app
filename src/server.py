@@ -59,7 +59,12 @@ class Server:
 					logging.info(f"Client disconnected!")
 					break
 				elif text == "!users":
-					#return users
+					users = json.dumps({"users": [client.username for client in self.clients]}).encode(self.encoding_format)
+					users_data_len = len(users)
+					#Send the ammount of data first
+					client.connection.sendall(str(users_data_len).encode(self.encoding_format))
+					#Then send the actual data.
+					client.connection.sendall(users)
 					pass
 				else:
 					message = f"{client.username}: {text}".encode(self.encoding_format)
