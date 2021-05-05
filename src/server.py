@@ -1,12 +1,10 @@
 import socket
 import threading
-import logging
+import logging 
 import json
 
 #TODO: Make the closing of the server much easier when running from cmd.
-
-#Thought about the commands system thing i did down there.
-#When one of tehse commands is executed just make sure that the client doesn't display anything. Simple as that.
+#TODO:Make some sort of error handler for this.
 
 class Client:
 	def __init__(self, connection, username=None):
@@ -32,11 +30,23 @@ class Server:
 		s.close()
 		return ip_addr
 
+	def _user_list_handler(self):
+		currentClients = len(self.clients)
+		while True:
+			if (clients := len(self.clients)) != currentClients:
+				if clients < currentClients:
+					logging.info(f"A user left: {self.clients[-1].username}!")
+				elif clients > currentClients:
+					logging.info(f"A user joined: {self.clients[-1].username}!")
+				if clients != 0:
+					currentClients = clients
+					data = json.dumps({"data_type": "user_data", "value": [x.username for x in self.clients]}).encode(self.encoding_format)
+					self._broadcast_data(data)
+
 	def _client_handler(self, connection):
 		#The first data being sent is gonna give us the information about the user.
 		#After that we're expecting only messages to be sent.
 		client = Client(connection)
-		self.clients.append(client)
 		user_data_acquired = False
 		while True:
 			if not user_data_acquired:
@@ -44,6 +54,7 @@ class Server:
 				user_data = client.connection.recv(self.recv_data)
 				client.username = user_data.decode(self.encoding_format)
 				user_data_acquired = True
+				self.clients.append(client)
 			else:
 				#Got the data about the user needed now wait for messages.
 				#Get the amount of data that is being expected.
@@ -53,35 +64,32 @@ class Server:
 				data = client.connection.recv(amt_data)
 				if not data:
 					pass
+				#The disconnect command is subject to delete.
+				#Since it won't be needed when i make the client.
 				if (text := data.decode(self.encoding_format)) == "!disconnect":
 					client.connection.close()
 					self.clients.remove(client)
 					logging.info(f"Client disconnected!")
 					break
-				elif text == "!users":
-					users = json.dumps({"users": [client.username for client in self.clients]}).encode(self.encoding_format)
-					users_data_len = len(users)
-					#Send the ammount of data first
-					client.connection.sendall(str(users_data_len).encode(self.encoding_format))
-					#Then send the actual data.
-					client.connection.sendall(users)
-					pass
 				else:
-					message = f"{client.username}: {text}".encode(self.encoding_format)
-					logging.info(text)
-					self.broadcast_message(message)
+					message = f"{client.username}: {text}"
+					logging.info(f"Broadcasting message: {text}")
+					data = json.dumps({"data_type": "message_data", "value": message}).encode(self.encoding_format)
+					self._broadcast_data(data)
 
-	def broadcast_message(self, msg):
+	def _broadcast_data(self, data):
 		for client in self.clients:
 			#Send the amount of data being sent
-			msg_size = len(msg)
+			data_size = len(data)
 			#First send the message size
-			client.connection.sendall(str(msg_size).encode(self.encoding_format))
+			client.connection.sendall(str(data_size).encode(self.encoding_format))
 			#Then send the actual data.
-			client.connection.sendall(msg)
+			client.connection.sendall(data)
 
 	def start_server(self):
 		self.ss.bind((self.ip_address, self.port))
+		userListHandler = threading.Thread(target=self._user_list_handler)
+		userListHandler.start()
 		logging.info("Server online!")
 		logging.info(f"Address: {self.ip_address}")
 		logging.info(f"Port: {self.port}")
@@ -89,8 +97,8 @@ class Server:
 			self.ss.listen()
 			Client, address = self.ss.accept()
 			logging.info('Client connected: ' + address[0] + ':' + str(address[1]))
-			new_thread = threading.Thread(target=self._client_handler, args=(Client,))
-			new_thread.start()
+			clientHandler = threading.Thread(target=self._client_handler, args=(Client,))
+			clientHandler.start()
 			self.thread_count +=1
 
 if __name__ == "__main__":
