@@ -76,9 +76,9 @@ class Server:
 						self.clients.remove(client)
 						break
 					else:
-						message = f"{client.username}: {text}"
+						message = f"{text}"
 						logging.info(f"Broadcasting message: {text}")
-						data = json.dumps({"data_type": "message_data", "value": message}).encode(self.encoding_format)
+						data = json.dumps({"data_type": "message_data", "value": message, "sender": client.username}).encode(self.encoding_format)
 						self._broadcast_data(data)
 				except ConnectionResetError:
 					try:
