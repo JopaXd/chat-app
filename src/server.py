@@ -3,8 +3,6 @@ import threading
 import logging 
 import json
 
-#TODO:Make some sort of error handler for this.
-
 class Client:
 	def __init__(self, connection, username=None):
 		self.connection	= connection
