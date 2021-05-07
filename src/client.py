@@ -226,6 +226,7 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
         msg_sender = msg["sender"]
         new_msg_lbl = QtWidgets.QLabel("msgLabel")
         new_msg_lbl.setText(f"  {msg_sender}:\n  {msg_text}")
+        #TODO: try to find a bettter formula to calculate the size of the message box/label.
         new_msg_lbl.setMinimumSize(len(msg_sender) * 10, 45)
         new_msg_lbl.setMaximumSize(len(f"  {msg_text}") * 5, len(f"  {msg_text}") * 5)
         new_msg_lbl.setStyleSheet("background:#eeeeee;")
