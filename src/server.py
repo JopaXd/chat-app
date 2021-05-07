@@ -104,6 +104,8 @@ class Server:
 				self.client.remove(client)
 
 	def start_server(self):
+		logging_format = "[%(levelname)s] %(asctime)s: %(message)s"
+		logging.basicConfig(format=logging_format, level=logging.INFO, datefmt="%H:%M:%S")
 		self.ss.bind((self.ip_address, self.port))
 		userListHandler = threading.Thread(target=self._user_list_handler)
 		userListHandler.start()
@@ -119,7 +121,5 @@ class Server:
 			self.thread_count +=1
 
 if __name__ == "__main__":
-	logging_format = "[%(levelname)s] %(asctime)s: %(message)s"
-	logging.basicConfig(format=logging_format, level=logging.INFO, datefmt="%H:%M:%S")
 	chatServer = Server()
 	chatServer.start_server()
