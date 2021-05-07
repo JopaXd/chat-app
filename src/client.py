@@ -18,13 +18,6 @@ import sys
 
 client = socket.socket()
 
-def _disconnect_client():
-    disconnect_msg = "!disconnect"
-    d_msg = disconnect_msg.encode("utf-8")
-    d_msg_len = str(len(d_msg)).encode("utf-8")
-    client.send(d_msg_len)
-    client.send(d_msg)
-
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -126,14 +119,17 @@ class Ui_MainWindow(object):
         self.messagesScrollArea.setWidgetResizable(True)
         self.messagesScrollArea.setObjectName("messagesScrollArea")
         self.messagesScrollAreaContent = QtWidgets.QWidget()
-        self.messagesScrollAreaContent.setGeometry(QtCore.QRect(0, 0, 871, 521))
+        self.messagesScrollAreaContent.setGeometry(QtCore.QRect(0, 0, 871, 509))
         self.messagesScrollAreaContent.setObjectName("messagesScrollAreaContent")
         self.verticalLayout = QtWidgets.QVBoxLayout(self.messagesScrollAreaContent)
         self.verticalLayout.setObjectName("verticalLayout")
         self.messagesScrollArea.setWidget(self.messagesScrollAreaContent)
         self.chatVerticalContainer.addWidget(self.messagesScrollArea)
+        self.chatFieldContainer = QtWidgets.QHBoxLayout()
+        self.chatFieldContainer.setSpacing(0)
+        self.chatFieldContainer.setObjectName("chatFieldContainer")
         self.messageTextEdit = QtWidgets.QTextEdit(self.chatWidget)
-        self.messageTextEdit.setMaximumSize(QtCore.QSize(3000, 65))
+        self.messageTextEdit.setMaximumSize(QtCore.QSize(16777215, 75))
         self.messageTextEdit.setStyleSheet("background-color:#eeeeee;\n"
 "border: solid;\n"
 "border-color: #eeeeee;\n"
@@ -144,7 +140,20 @@ class Ui_MainWindow(object):
 "margin-left:20px;\n"
 "margin-top:20px;")
         self.messageTextEdit.setObjectName("messageTextEdit")
-        self.chatVerticalContainer.addWidget(self.messageTextEdit)
+        self.chatFieldContainer.addWidget(self.messageTextEdit)
+        self.sendBtn = QtWidgets.QPushButton(self.chatWidget)
+        self.sendBtn.setMinimumSize(QtCore.QSize(70, 20))
+        self.sendBtn.setMaximumSize(QtCore.QSize(16000000, 55))
+        self.sendBtn.setStyleSheet("border:none;\n"
+"background:#eeeeee;\n"
+"margin-top:9px;")
+        self.sendBtn.setObjectName("sendBtn")
+        self.chatFieldContainer.addWidget(self.sendBtn)
+        spacerItem7 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.chatFieldContainer.addItem(spacerItem7)
+        self.chatVerticalContainer.addLayout(self.chatFieldContainer)
+        self.chatVerticalContainer.setStretch(0, 9)
+        self.chatVerticalContainer.setStretch(1, 1)
         self.verticalLayout_3.addLayout(self.chatVerticalContainer)
         self.hboxlayout.addWidget(self.chatWidget)
         self.membersWidget = QtWidgets.QWidget(self.chatPage)
@@ -170,8 +179,8 @@ class Ui_MainWindow(object):
 "color:white;")
         self.membersListWidget.setObjectName("membersListWidget")
         self.membersContainer.addWidget(self.membersListWidget)
-        spacerItem7 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.membersContainer.addItem(spacerItem7)
+        spacerItem8 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.membersContainer.addItem(spacerItem8)
         self.disconnectBtn = QtWidgets.QPushButton(self.membersWidget)
         self.disconnectBtn.setMinimumSize(QtCore.QSize(0, 30))
         self.disconnectBtn.setStyleSheet("border:none;\n"
@@ -187,11 +196,40 @@ class Ui_MainWindow(object):
         self.gridLayout_3.addWidget(self.stackedWidget, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
 
-        self.disconnectBtn.clicked.connect(self.disconnect)
-        self.connectBtn.clicked.connect(self.connect)
-
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def retranslateUi(self, MainWindow):
+        _translate = QtCore.QCoreApplication.translate
+        MainWindow.setWindowTitle(_translate("MainWindow", "Chat App"))
+        self.mainPageTitle.setText(_translate("MainWindow", "Chat App"))
+        self.ipAddressLbl.setText(_translate("MainWindow", "IP Address:"))
+        self.usernameLbl.setText(_translate("MainWindow", "Username:"))
+        self.connectBtn.setText(_translate("MainWindow", "Connect!"))
+        self.sendBtn.setText(_translate("MainWindow", "Send!"))
+        self.membersLbl.setText(_translate("MainWindow", "Members (3):"))
+        self.disconnectBtn.setText(_translate("MainWindow", "Disconnect"))
+
+class mainAppWindow(QMainWindow, Ui_MainWindow):
+    newMessage = QtCore.pyqtSignal(dict)
+
+    def __init__(self, parent=None):
+        super(mainAppWindow, self).__init__(parent)
+        self.setupUi(self)
+        self.sendBtn.clicked.connect(self.send_message)
+        self.disconnectBtn.clicked.connect(self.disconnect)
+        self.connectBtn.clicked.connect(self.connect)
+        self.newMessage.connect(self.new_msg)
+
+    def new_msg(self, msg):
+        msg_text = msg["text"]
+        msg_sender = msg["sender"]
+        new_msg_lbl = QtWidgets.QLabel("msgLabel")
+        new_msg_lbl.setText(f"  {msg_sender}:\n  {msg_text}")
+        new_msg_lbl.setMinimumSize(len(msg_sender) * 10, 45)
+        new_msg_lbl.setMaximumSize(len(f"  {msg_text}") * 5, len(f"  {msg_text}") * 5)
+        new_msg_lbl.setStyleSheet("background:#eeeeee;")
+        self.verticalLayout.addWidget(new_msg_lbl)
 
     def _client_connection(self, host, port, username):
         client.send(str.encode(username))
@@ -210,11 +248,7 @@ class Ui_MainWindow(object):
                     sender = msg_data["sender"]
                     text = msg_data["value"]
                     #All of the spaces are just for a slight margin on the ui...
-                    new_msg_lbl = QtWidgets.QLabel(f"  {sender}:\n  {text}")
-                    new_msg_lbl.setMinimumSize(0, 45)
-                    new_msg_lbl.setMaximumSize(len(f"  {text}") * 5, 160000)
-                    new_msg_lbl.setStyleSheet("background:#eeeeee;")
-                    self.messagesScrollAreaContent.addWidget(new_msg_lbl)
+                    self.newMessage.emit({"text": text, "sender": sender})
             except:
                 break
 
@@ -266,6 +300,13 @@ class Ui_MainWindow(object):
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 
+    def _disconnect_client(self):
+        disconnect_msg = "!disconnect"
+        d_msg = disconnect_msg.encode("utf-8")
+        d_msg_len = str(len(d_msg)).encode("utf-8")
+        client.send(d_msg_len)
+        client.send(d_msg)
+
     def disconnect(self):
         disconenct_msg_box = QMessageBox()
         disconenct_msg_box.setText("Are you sure you want to disconnect from this server?")
@@ -279,19 +320,18 @@ class Ui_MainWindow(object):
         else:
             pass
 
-    def retranslateUi(self, MainWindow):
-        _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "Chat App"))
-        self.mainPageTitle.setText(_translate("MainWindow", "Chat App"))
-        self.ipAddressLbl.setText(_translate("MainWindow", "IP Address:"))
-        self.usernameLbl.setText(_translate("MainWindow", "Username:"))
-        self.connectBtn.setText(_translate("MainWindow", "Connect!"))
-        self.membersLbl.setText(_translate("MainWindow", "Members (3):"))
-        self.disconnectBtn.setText(_translate("MainWindow", "Disconnect"))
-
-class mainAppWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+    def send_message(self):
+        message = self.messageTextEdit.toPlainText()
+        if message != "":
+            msg = message.encode("utf-8")
+            msg_len = str(len(msg)).encode("utf-8")
+            #Send the amount of data first
+            client.send(msg_len)
+            #Then send the actual data
+            client.send(msg)
+            self.messageTextEdit.clear()
+        else:
+            pass
 
     def closeEvent(self, event):
         close = QMessageBox()
@@ -300,7 +340,7 @@ class mainAppWindow(QMainWindow):
         close = close.exec_()
         if close == QMessageBox.Yes:
             try:
-                _disconnect_client()
+                self._disconnect_client()
                 event.accept()
             except OSError:
                 #Meaning the client is not connected.
@@ -311,7 +351,5 @@ class mainAppWindow(QMainWindow):
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = mainAppWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
     MainWindow.show()
     sys.exit(app.exec_())

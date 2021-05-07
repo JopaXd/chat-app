@@ -251,7 +251,7 @@
             <number>0</number>
            </property>
            <item>
-            <layout class="QVBoxLayout" name="chatVerticalContainer">
+            <layout class="QVBoxLayout" name="chatVerticalContainer" stretch="9,1">
              <property name="spacing">
               <number>0</number>
              </property>
@@ -274,7 +274,7 @@ border:solid;</string>
                   <x>0</x>
                   <y>0</y>
                   <width>871</width>
-                  <height>521</height>
+                  <height>509</height>
                  </rect>
                 </property>
                 <layout class="QVBoxLayout" name="verticalLayout"/>
@@ -282,15 +282,20 @@ border:solid;</string>
               </widget>
              </item>
              <item>
-              <widget class="QTextEdit" name="messageTextEdit">
-               <property name="maximumSize">
-                <size>
-                 <width>3000</width>
-                 <height>65</height>
-                </size>
+              <layout class="QHBoxLayout" name="chatFieldContainer">
+               <property name="spacing">
+                <number>0</number>
                </property>
-               <property name="styleSheet">
-                <string notr="true">background-color:#eeeeee;
+               <item>
+                <widget class="QTextEdit" name="messageTextEdit">
+                 <property name="maximumSize">
+                  <size>
+                   <width>16777215</width>
+                   <height>75</height>
+                  </size>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">background-color:#eeeeee;
 border: solid;
 border-color: #eeeeee;
 border-radius:5px;
@@ -299,8 +304,47 @@ margin-bottom:10px;
 margin-right:20px;
 margin-left:20px;
 margin-top:20px;</string>
-               </property>
-              </widget>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="sendBtn">
+                 <property name="minimumSize">
+                  <size>
+                   <width>70</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>16000000</width>
+                   <height>55</height>
+                  </size>
+                 </property>
+                 <property name="styleSheet">
+                  <string notr="true">border:none;
+background:#eeeeee;
+margin-top:9px;</string>
+                 </property>
+                 <property name="text">
+                  <string>Send!</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="chatFieldSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>20</width>
+                   <height>40</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
              </item>
             </layout>
            </item>
