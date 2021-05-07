@@ -104,20 +104,7 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QTextEdit" name="ipAddressField">
-                  <property name="minimumSize">
-                   <size>
-                    <width>0</width>
-                    <height>0</height>
-                   </size>
-                  </property>
-                  <property name="maximumSize">
-                   <size>
-                    <width>16777215</width>
-                    <height>25</height>
-                   </size>
-                  </property>
-                 </widget>
+                 <widget class="QLineEdit" name="ipAddressField"/>
                 </item>
                 <item>
                  <spacer name="ipAddressSpacer2">
@@ -157,14 +144,7 @@
                  </widget>
                 </item>
                 <item>
-                 <widget class="QTextEdit" name="usernameField">
-                  <property name="maximumSize">
-                   <size>
-                    <width>16777215</width>
-                    <height>25</height>
-                   </size>
-                  </property>
-                 </widget>
+                 <widget class="QLineEdit" name="usernameField"/>
                 </item>
                 <item>
                  <spacer name="usernameSpacer2">
@@ -367,10 +347,11 @@ margin-top:20px;</string>
               </widget>
              </item>
              <item>
-              <widget class="QListView" name="membersListView">
+              <widget class="QListWidget" name="membersListWidget">
                <property name="styleSheet">
                 <string notr="true">border-color:#00A5FF;
-border:solid;</string>
+border:solid;
+color:white;</string>
                </property>
               </widget>
              </item>
@@ -386,6 +367,24 @@ border:solid;</string>
                 </size>
                </property>
               </spacer>
+             </item>
+             <item>
+              <widget class="QPushButton" name="disconnectBtn">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>30</height>
+                </size>
+               </property>
+               <property name="styleSheet">
+                <string notr="true">border:none;
+color:white;
+background:#dd0000;</string>
+               </property>
+               <property name="text">
+                <string>Disconnect</string>
+               </property>
+              </widget>
              </item>
             </layout>
            </item>

@@ -9,7 +9,21 @@
 
 
 from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QApplication, QMessageBox, QMainWindow, QAction
+import re
+import socket
+import threading
+import json
+import sys
 
+client = socket.socket()
+
+def _disconnect_client():
+    disconnect_msg = "!disconnect"
+    d_msg = disconnect_msg.encode("utf-8")
+    d_msg_len = str(len(d_msg)).encode("utf-8")
+    client.send(d_msg_len)
+    client.send(d_msg)
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -53,9 +67,7 @@ class Ui_MainWindow(object):
         self.ipAddressLbl = QtWidgets.QLabel(self.mainPageVerticalContainer)
         self.ipAddressLbl.setObjectName("ipAddressLbl")
         self.ipAddressContainer.addWidget(self.ipAddressLbl)
-        self.ipAddressField = QtWidgets.QTextEdit(self.mainPageVerticalContainer)
-        self.ipAddressField.setMinimumSize(QtCore.QSize(0, 0))
-        self.ipAddressField.setMaximumSize(QtCore.QSize(16777215, 25))
+        self.ipAddressField = QtWidgets.QLineEdit(self.mainPageVerticalContainer)
         self.ipAddressField.setObjectName("ipAddressField")
         self.ipAddressContainer.addWidget(self.ipAddressField)
         spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -68,8 +80,7 @@ class Ui_MainWindow(object):
         self.usernameLbl = QtWidgets.QLabel(self.mainPageVerticalContainer)
         self.usernameLbl.setObjectName("usernameLbl")
         self.usernameContainer.addWidget(self.usernameLbl)
-        self.usernameField = QtWidgets.QTextEdit(self.mainPageVerticalContainer)
-        self.usernameField.setMaximumSize(QtCore.QSize(16777215, 25))
+        self.usernameField = QtWidgets.QLineEdit(self.mainPageVerticalContainer)
         self.usernameField.setObjectName("usernameField")
         self.usernameContainer.addWidget(self.usernameField)
         spacerItem4 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
@@ -153,13 +164,21 @@ class Ui_MainWindow(object):
         self.membersLbl.setAlignment(QtCore.Qt.AlignCenter)
         self.membersLbl.setObjectName("membersLbl")
         self.membersContainer.addWidget(self.membersLbl)
-        self.membersListView = QtWidgets.QListView(self.membersWidget)
-        self.membersListView.setStyleSheet("border-color:#00A5FF;\n"
-"border:solid;")
-        self.membersListView.setObjectName("membersListView")
-        self.membersContainer.addWidget(self.membersListView)
+        self.membersListWidget = QtWidgets.QListWidget(self.membersWidget)
+        self.membersListWidget.setStyleSheet("border-color:#00A5FF;\n"
+"border:solid;\n"
+"color:white;")
+        self.membersListWidget.setObjectName("membersListWidget")
+        self.membersContainer.addWidget(self.membersListWidget)
         spacerItem7 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.membersContainer.addItem(spacerItem7)
+        self.disconnectBtn = QtWidgets.QPushButton(self.membersWidget)
+        self.disconnectBtn.setMinimumSize(QtCore.QSize(0, 30))
+        self.disconnectBtn.setStyleSheet("border:none;\n"
+"color:white;\n"
+"background:#dd0000;")
+        self.disconnectBtn.setObjectName("disconnectBtn")
+        self.membersContainer.addWidget(self.disconnectBtn)
         self.verticalLayout_5.addLayout(self.membersContainer)
         self.hboxlayout.addWidget(self.membersWidget)
         self.hboxlayout.setStretch(0, 4)
@@ -168,8 +187,97 @@ class Ui_MainWindow(object):
         self.gridLayout_3.addWidget(self.stackedWidget, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
 
+        self.disconnectBtn.clicked.connect(self.disconnect)
+        self.connectBtn.clicked.connect(self.connect)
+
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+
+    def _client_connection(self, host, port, username):
+        client.send(str.encode(username))
+        while True:
+            try:
+                msg_size = int(client.recv(2048).decode("utf-8"))
+                msg = client.recv(msg_size)
+                msg_data = json.loads(msg.decode("utf-8"))
+                if (msg_type := msg_data["data_type"]) == "user_data":
+                    users = msg_data["value"]
+                    self.membersLbl.setText(f"Members ({len(users)}):")
+                    self.membersListWidget.clear()
+                    for user in users:
+                        self.membersListWidget.addItem(user)
+                elif msg_type == "message_data":
+                    sender = msg_data["sender"]
+                    text = msg_data["value"]
+                    #All of the spaces are just for a slight margin on the ui...
+                    new_msg_lbl = QtWidgets.QLabel(f"  {sender}:\n  {text}")
+                    new_msg_lbl.setMinimumSize(0, 45)
+                    new_msg_lbl.setMaximumSize(len(f"  {text}") * 5, 160000)
+                    new_msg_lbl.setStyleSheet("background:#eeeeee;")
+                    self.messagesScrollAreaContent.addWidget(new_msg_lbl)
+            except:
+                break
+
+    def connect(self):
+        #Address format ip:port
+        regex = r"\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?::[0-9]{1,4})?\b"
+        address = self.ipAddressField.text()
+        username = self.usernameField.text()
+        if address == "":
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("The address field is empty!")
+            msg.setWindowTitle("Error!")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+            return
+        elif username == "":
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("The username field is empty!")
+            msg.setWindowTitle("Error!")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+            return
+        if re.match(regex, address):
+            addressSplit = address.split(":")
+            host = addressSplit[0]
+            port = int(addressSplit[1])
+            try:
+                client.connect((host, port))
+                #Load the chat screen.
+                self.stackedWidget.setCurrentIndex(1)
+                c_thread = threading.Thread(target=self._client_connection, args=(host, port, username,))
+                c_thread.start()
+            except Exception as e:
+                print(e)
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("Failed to connect to this server!")
+                msg.setWindowTitle("Error!")
+                msg.setStandardButtons(QMessageBox.Ok)
+                msg.exec_()
+                return
+        else:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("This address is invalid, the format should be: ip:port.")
+            msg.setWindowTitle("Error!")
+            msg.setStandardButtons(QMessageBox.Ok)
+            msg.exec_()
+
+    def disconnect(self):
+        disconenct_msg_box = QMessageBox()
+        disconenct_msg_box.setText("Are you sure you want to disconnect from this server?")
+        disconenct_msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        disconenct_msg_box = disconenct_msg_box.exec_()
+        if disconenct_msg_box == QMessageBox.Yes:
+            #Disconnect
+            self._disconnect_client()
+            #Return to the home page.
+            self.stackedWidget.setCurrentIndex(0)
+        else:
+            pass
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
@@ -179,11 +287,30 @@ class Ui_MainWindow(object):
         self.usernameLbl.setText(_translate("MainWindow", "Username:"))
         self.connectBtn.setText(_translate("MainWindow", "Connect!"))
         self.membersLbl.setText(_translate("MainWindow", "Members (3):"))
+        self.disconnectBtn.setText(_translate("MainWindow", "Disconnect"))
+
+class mainAppWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+
+    def closeEvent(self, event):
+        close = QMessageBox()
+        close.setText("Are you sure you want to exit?")
+        close.setStandardButtons(QMessageBox.Yes | QMessageBox.Cancel)
+        close = close.exec_()
+        if close == QMessageBox.Yes:
+            try:
+                _disconnect_client()
+                event.accept()
+            except OSError:
+                #Meaning the client is not connected.
+                pass
+        else:
+            event.ignore()
 
 if __name__ == "__main__":
-    import sys
     app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
+    MainWindow = mainAppWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
     MainWindow.show()
