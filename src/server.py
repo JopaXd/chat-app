@@ -5,7 +5,6 @@ import json
 import configparser
 import os
 from datetime import datetime
-import sys
 
 class Client:
 	def __init__(self, connection, username=None):
