@@ -2,6 +2,8 @@ import socket
 import threading
 import logging 
 import json
+import configparser
+import os
 
 class Client:
 	def __init__(self, connection, username=None):
@@ -104,8 +106,6 @@ class Server:
 				self.client.remove(client)
 
 	def start_server(self):
-		logging_format = "[%(levelname)s] %(asctime)s: %(message)s"
-		logging.basicConfig(format=logging_format, level=logging.INFO, datefmt="%H:%M:%S")
 		self.ss.bind((self.ip_address, self.port))
 		userListHandler = threading.Thread(target=self._user_list_handler)
 		userListHandler.start()
@@ -120,6 +120,30 @@ class Server:
 			clientHandler.start()
 			self.thread_count +=1
 
+def create_default_config():
+	config['SERVER'] = {"port": 7802, "recv_data": 2048}
+	with open("./server_config.ini", "w") as cf:
+		config.write(cf)
+	cf.close()
+
 if __name__ == "__main__":
-	chatServer = Server()
+	logging_format = "[%(levelname)s] %(asctime)s: %(message)s"
+	logging.basicConfig(format=logging_format, level=logging.INFO, datefmt="%H:%M:%S")
+	config = configparser.ConfigParser()
+	if not os.path.exists("./server_config.ini"):
+		create_default_config()
+		port = 7802
+		recv_data = 2048
+	else:
+		config.read("./server_config.ini")
+		try:
+			port = int(config["SERVER"]["port"])
+			recv_data = int(config["SERVER"]["port"])
+		except:
+			logging.warning("The config file is missing some properties!")
+			logging.info("Creating a new config file...")
+			create_default_config()
+			port = 7802
+			recv_data = 2048
+	chatServer = Server(port=port, recv_data=recv_data)
 	chatServer.start_server()
