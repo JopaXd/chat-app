@@ -4,6 +4,8 @@ import logging
 import json
 import configparser
 import os
+from datetime import datetime
+import sys
 
 class Client:
 	def __init__(self, connection, username=None):
@@ -18,6 +20,7 @@ class Server:
 		self.clients = []
 		self.recv_data = kwargs.get("recv_data", 2048)
 		self.encoding_format = "utf-8"
+		self.chat_logging = kwargs.get("chat_logging", False)
 
 	#Grabbing the local ip address.
 	#In reality you should use the public ip address.
@@ -79,7 +82,6 @@ class Server:
 						break
 					else:
 						message = f"{text}"
-						logging.info(f"Broadcasting message: {text}")
 						data = json.dumps({"data_type": "message_data", "value": message, "sender": client.username}).encode(self.encoding_format)
 						self._broadcast_data(data)
 				except ConnectionResetError:
@@ -93,6 +95,9 @@ class Server:
 
 	#A function to send the data to all connected clients.
 	def _broadcast_data(self, data):
+		decoded_data = json.loads(data.decode(self.encoding_format))
+		if decoded_data["data_type"] == "message_data":
+			logging.info(f"Broadcasting message: {decoded_data['value']}")
 		for client in self.clients:
 			#Send the amount of data being sent
 			data_size = len(data)
@@ -101,11 +106,22 @@ class Server:
 				client.connection.sendall(str(data_size).encode(self.encoding_format))
 				#Then send the actual data.
 				client.connection.sendall(data)
+				if chat_logging:
+					if decoded_data["data_type"] == "message_data":
+						sender = decoded_data["sender"]
+						msg_content = decoded_data["value"]
+						current_time = datetime.now()
+						log_time = current_time.strftime('%d/%m/%Y %H:%M')
+						log = f"{log_time} {sender}: {msg_content}"
+						self.chat_log_file.write(f"{log}\n")
+						self.chat_log_file.flush()
 			except:
-				#Means the client is not active for whatevr reason, remove it from the list.
-				self.client.remove(client)
+				#Means the client is not active for whatever reason, remove it from the list.
+				self.clients.remove(client)
 
 	def start_server(self):
+		if self.chat_logging:
+			self.chat_log_file = open("chat_log.log", "a")
 		self.ss.bind((self.ip_address, self.port))
 		userListHandler = threading.Thread(target=self._user_list_handler)
 		userListHandler.start()
@@ -121,7 +137,9 @@ class Server:
 			self.thread_count +=1
 
 def create_default_config():
-	config['SERVER'] = {"port": 7802, "recv_data": 2048}
+	#You cannot write booleans in .ini files.
+	#Instead when you read those proeprties they will become strings.
+	config['SERVER'] = {"port": 7802, "recv_data": 2048, "chat_logging": "False"}
 	with open("./server_config.ini", "w") as cf:
 		config.write(cf)
 	cf.close()
@@ -132,18 +150,30 @@ if __name__ == "__main__":
 	config = configparser.ConfigParser()
 	if not os.path.exists("./server_config.ini"):
 		create_default_config()
+		#Defaults
 		port = 7802
 		recv_data = 2048
+		chat_logging = False
 	else:
 		config.read("./server_config.ini")
 		try:
 			port = int(config["SERVER"]["port"])
 			recv_data = int(config["SERVER"]["port"])
+			cl = config["SERVER"]["chat_logging"]
+			if cl == "True":
+				chat_logging = True
+			elif cl == "False":
+				chat_logging = False
+			else:
+				#Just raise an exception to generate the default config file.
+				raise Exception
 		except:
 			logging.warning("The config file is missing some properties!")
 			logging.info("Creating a new config file...")
 			create_default_config()
+			#Defaults
 			port = 7802
 			recv_data = 2048
-	chatServer = Server(port=port, recv_data=recv_data)
+			chat_logging = False
+	chatServer = Server(port=port, recv_data=recv_data, chat_logging=chat_logging)
 	chatServer.start_server()
