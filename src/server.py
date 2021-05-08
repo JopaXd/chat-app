@@ -9,12 +9,12 @@ class Client:
 		self.username = username
 
 class Server:
-	def __init__(self, port=7802, recv_data=2048):
-		self.port = port
+	def __init__(self, **kwargs):
+		self.port = kwargs.get("port", 7802)
 		self.ss = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.thread_count = 0
 		self.clients = []
-		self.recv_data = recv_data
+		self.recv_data = kwargs.get("recv_data", 2048)
 		self.encoding_format = "utf-8"
 
 	#Grabbing the local ip address.
