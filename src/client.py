@@ -6,8 +6,6 @@ import threading
 import json
 import sys
 
-client = socket.socket()
-
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
@@ -210,6 +208,7 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
         self.disconnectBtn.clicked.connect(self.disconnect)
         self.connectBtn.clicked.connect(self.connect)
         self.newMessage.connect(self.new_msg)
+        self.client = socket.socket()
 
     def new_msg(self, msg):
         msg_text = msg["text"]
@@ -223,11 +222,11 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
         self.verticalLayout.addWidget(new_msg_lbl)
 
     def _client_connection(self, host, port, username):
-        client.send(str.encode(username))
+        self.client.send(str.encode(username))
         while True:
             try:
-                msg_size = int(client.recv(2048).decode("utf-8"))
-                msg = client.recv(msg_size)
+                msg_size = int(self.client.recv(2048).decode("utf-8"))
+                msg = self.client.recv(msg_size)
                 msg_data = json.loads(msg.decode("utf-8"))
                 if (msg_type := msg_data["data_type"]) == "user_data":
                     users = msg_data["value"]
@@ -269,7 +268,7 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
             host = addressSplit[0]
             port = int(addressSplit[1])
             try:
-                client.connect((host, port))
+                self.client.connect((host, port))
                 #Load the chat screen.
                 self.stackedWidget.setCurrentIndex(1)
                 c_thread = threading.Thread(target=self._client_connection, args=(host, port, username,))
@@ -295,8 +294,9 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
         disconnect_msg = "!disconnect"
         d_msg = disconnect_msg.encode("utf-8")
         d_msg_len = str(len(d_msg)).encode("utf-8")
-        client.send(d_msg_len)
-        client.send(d_msg)
+        self.client.send(d_msg_len)
+        self.client.send(d_msg)
+        self.client = socket.socket()
 
     def disconnect(self):
         disconenct_msg_box = QMessageBox()
@@ -317,9 +317,9 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
             msg = message.encode("utf-8")
             msg_len = str(len(msg)).encode("utf-8")
             #Send the amount of data first
-            client.send(msg_len)
+            self.client.send(msg_len)
             #Then send the actual data
-            client.send(msg)
+            self.client.send(msg)
             self.messageTextEdit.clear()
         else:
             pass
