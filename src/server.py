@@ -20,11 +20,11 @@ class Server:
 		self.recv_data = kwargs.get("recv_data", 2048)
 		self.encoding_format = "utf-8"
 		self.chat_logging = kwargs.get("chat_logging", False)
+		self.host = kwargs.get("host", self._local_ip_address())
 
 	#Grabbing the local ip address.
 	#In reality you should use the public ip address.
-	@property
-	def ip_address(self):
+	def _local_ip_address(self):
 		s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		s.connect(("8.8.8.8", 80))
 		ip_addr = s.getsockname()[0]
@@ -121,11 +121,11 @@ class Server:
 	def start_server(self):
 		if self.chat_logging:
 			self.chat_log_file = open("chat_log.log", "a")
-		self.ss.bind((self.ip_address, self.port))
+		self.ss.bind((self.host, self.port))
 		userListHandler = threading.Thread(target=self._user_list_handler)
 		userListHandler.start()
 		logging.info("Server online!")
-		logging.info(f"Address: {self.ip_address}")
+		logging.info(f"Address: {self.host}")
 		logging.info(f"Port: {self.port}")
 		while True:
 			self.ss.listen()
@@ -138,7 +138,7 @@ class Server:
 def create_default_config():
 	#You cannot write booleans in .ini files.
 	#Instead when you read those proeprties they will become strings.
-	config['SERVER'] = {"port": 7802, "recv_data": 2048, "chat_logging": "False"}
+	config['SERVER'] = {"port": 7802, "recv_data": 2048, "chat_logging": "False", "host": "self_assigned"}
 	with open("./server_config.ini", "w") as cf:
 		config.write(cf)
 	cf.close()
@@ -153,12 +153,14 @@ if __name__ == "__main__":
 		port = 7802
 		recv_data = 2048
 		chat_logging = False
+		host = "self_assigned"
 	else:
 		config.read("./server_config.ini")
 		try:
 			port = int(config["SERVER"]["port"])
 			recv_data = int(config["SERVER"]["port"])
 			cl = config["SERVER"]["chat_logging"]
+			host = config["SERVER"]["host"]
 			if cl == "True":
 				chat_logging = True
 			elif cl == "False":
@@ -174,5 +176,9 @@ if __name__ == "__main__":
 			port = 7802
 			recv_data = 2048
 			chat_logging = False
-	chatServer = Server(port=port, recv_data=recv_data, chat_logging=chat_logging)
+			host = "self_assigned"
+	if host == "self_assigned":
+		chatServer = Server(port=port, recv_data=recv_data, chat_logging=chat_logging)
+	else:
+		chatServer = Server(port=port, recv_data=recv_data, chat_logging=chat_logging, host=host)
 	chatServer.start_server()
