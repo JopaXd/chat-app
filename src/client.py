@@ -267,6 +267,7 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
             addressSplit = address.split(":")
             host = addressSplit[0]
             port = int(addressSplit[1])
+            self.client = socket.socket()
             try:
                 self.client.connect((host, port))
                 #Load the chat screen.
@@ -294,9 +295,13 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
         disconnect_msg = "!disconnect"
         d_msg = disconnect_msg.encode("utf-8")
         d_msg_len = str(len(d_msg)).encode("utf-8")
-        self.client.send(d_msg_len)
-        self.client.send(d_msg)
-        self.client = socket.socket()
+        try:
+            self.client.send(d_msg_len)
+            self.client.send(d_msg)
+        except ConnectionResetError:
+            #Meaning the server already closed the connection.
+            #Do nothing.
+            pass
 
     def disconnect(self):
         disconenct_msg_box = QMessageBox()
@@ -317,9 +322,18 @@ class mainAppWindow(QMainWindow, Ui_MainWindow):
             msg = message.encode("utf-8")
             msg_len = str(len(msg)).encode("utf-8")
             #Send the amount of data first
-            self.client.send(msg_len)
-            #Then send the actual data
-            self.client.send(msg)
+            try:
+                self.client.send(msg_len)
+                #Then send the actual data
+                self.client.send(msg)
+            except ConnectionResetError:
+                connectionWarning = QMessageBox()
+                connectionWarning.setText("Lost connection to the server.")
+                connectionWarning.setIcon(QMessageBox.Critical)
+                connectionWarning.setStandardButtons(QMessageBox.Ok)
+                #Waiting for the user to click ok.
+                connectionWarning = connectionWarning.exec_()
+                self.stackedWidget.setCurrentIndex(0)
             self.messageTextEdit.clear()
         else:
             pass
